@@ -1,11 +1,10 @@
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List
+
+from starlette.responses import StreamingResponse
 from EasyPrBot import EasyPrBot_Filters
-import io
-import pandas as pd
 
 
 app = FastAPI()
@@ -19,10 +18,11 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"]
 )
 
 class Filter(BaseModel):
@@ -59,19 +59,11 @@ async def getBlogers(item: Filter):
          'max_price_per_follower': str(max_price_per_follower),
          'ad_type': item.adFormat}
 
-    chosen_blogers = easyprbot_filter.get_all_pages(query, save = True, filename = item.filename)
-    stream = io.StringIO()
-    xlw = pd.ExcelWriter(stream, engine='openpyxl')
-    print(stream, -1)
-    chosen_blogers.to_excel(xlw, sheet_name=item.filename)
-    print(0)
-    xlw.save()
-    # headers = {
-    #     'Content-Disposition': 'attachment; filename="filename.xlsx"'
-    # }
-    print(1)
-    # stream.seek(0)
-    return StreamingResponse(stream.getvalue(),media_type='application/octet-stream')
+    chosen_blogers = easyprbot_filter.get_all_pages(query, item.filename)
+
+    response = StreamingResponse(chosen_blogers, media_type="application/octet-stream")
+    # response.headers["Content-Disposition"] = "attachment;filename=my_pod.xlsx"
+    return response
 
 @app.post("/analyzeBlogers/")
 async def analyzeBlogers(item: Analyzer):

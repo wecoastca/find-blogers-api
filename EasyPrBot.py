@@ -1,9 +1,7 @@
 import requests
 import pandas as pd
-from datetime import datetime
 from tqdm import tqdm
-import time
-from IPython.display import HTML
+from io import BytesIO
 
 class EasyPrBot_Filters:
   def __init__(self, main_link = 'https://easyprbot.com/api/',
@@ -64,18 +62,14 @@ class EasyPrBot_Filters:
     blogers_save = blogers.copy()
     blogers_save['profile_link'] = blogers_save['profile_link'].apply(
         lambda x: f'=HYPERLINK("{x}", "{x}")')
-    blogers_save.to_excel(filename)
+    
+    bio = BytesIO()
+    writer = pd.ExcelWriter(bio, engine="xlsxwriter")
+    blogers_save.to_excel(writer,filename)
 
-  def get_blogers(self, query, save = True, filename = 'podbor.xlsx'):
-    self.query = self.process_query(**query)
-    num, total_pages, bloger_info = self.filter_blogers()
-    self.num = num
-    self.total_pages = total_pages
-    print(f'Obtained {num} blogers in current search')
-    self.blogers_json, self.blogers_df = self.format_blogers_json(bloger_info)
-    if save:
-      self.save_blogers_to_file(self.blogers_df, filename)
-    return self.blogers_df
+    writer.save()
+    bio.seek(0)
+    return bio
 
   def filter_blogers(self):
     result = requests.get(self.main_link+self.blogers_sublink, params = self.query)
@@ -140,13 +134,7 @@ class EasyPrBot_Filters:
 
     return query
 
-  def to_page(self, page):
-    self.query['page'] = page
-    num, total_pages, bloger_info = self.filter_blogers()
-    self.blogers_json, self.blogers_df = self.format_blogers_json(bloger_info)
-    return self.blogers_df
-
-  def get_all_pages(self, query, save = False, filename = 'database.xlsx'):
+  def get_all_pages(self, query, filename = 'database.xlsx'):
     self.query = self.process_query(**query)
     num, total_pages, bloger_info = self.filter_blogers()
     self.num = num
@@ -163,12 +151,5 @@ class EasyPrBot_Filters:
       all_pages.append(blogers_df)
     self.all_pages_blogers_df = pd.concat(all_pages)
     self.all_pages_blogers_df = self.all_pages_blogers_df.reset_index()
-    if save:
-      today_date = datetime.today().strftime('%Y_%m_%d')
-      self.save_blogers_to_file(self.all_pages_blogers_df, f'database_{today_date}.xlsx')
-    return self.all_pages_blogers_df
-
-  def show_table(self, data_df):
-    data_df = data_df.copy()
-    data_df['profile_link'] = data_df['profile_link'].apply(lambda x: f'<a href="{x}">{x}</a>')
-    return HTML(data_df.to_html(escape=False))
+    #метод должен возвращать файл в стриме
+    return self.save_blogers_to_file(self.all_pages_blogers_df, filename)
