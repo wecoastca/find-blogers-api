@@ -1,7 +1,7 @@
 import requests
 import pandas as pd
 from tqdm import tqdm
-from io import BytesIO
+from utils import df_to_excel
 
 class EasyPrBot_Filters:
   def __init__(self, main_link = 'https://easyprbot.com/api/',
@@ -57,19 +57,6 @@ class EasyPrBot_Filters:
     blogers_json = list(map(self.format_bloger, blogers_json))
     blogers_df = pd.DataFrame(blogers_json)
     return blogers_json, blogers_df
-
-  def save_blogers_to_file(self, blogers, filename):
-    blogers_save = blogers.copy()
-    blogers_save['profile_link'] = blogers_save['profile_link'].apply(
-        lambda x: f'=HYPERLINK("{x}", "{x}")')
-    
-    bio = BytesIO()
-    writer = pd.ExcelWriter(bio, engine="xlsxwriter")
-    blogers_save.to_excel(writer,filename)
-
-    writer.save()
-    bio.seek(0)
-    return bio
 
   def filter_blogers(self):
     result = requests.get(self.main_link+self.blogers_sublink, params = self.query)
@@ -152,4 +139,4 @@ class EasyPrBot_Filters:
     self.all_pages_blogers_df = pd.concat(all_pages)
     self.all_pages_blogers_df = self.all_pages_blogers_df.reset_index()
     #метод должен возвращать файл в стриме
-    return self.save_blogers_to_file(self.all_pages_blogers_df, filename)
+    return df_to_excel(self.all_pages_blogers_df, filename)
